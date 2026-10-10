@@ -1,0 +1,59 @@
+import axios from 'axios';
+
+export function verifyCodeFunction(e, user) {
+    //mandar peticion a /verify con el codigo introducido y el mail guardado en state
+    const formData = new FormData(e.target);
+    const jsonFormData = Object.fromEntries(formData.entries());
+
+    jsonFormData['Mail'] = user.mail;
+    console.log(user);
+    const publicBase = import.meta.env.BASE_URL ?? '/'
+    axios.post(`/api/auth/verify`,
+        jsonFormData,
+        {
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then((res) => {
+            if (res.status == 200) {
+                localStorage.setItem("aT", res.data.data.accessToken);
+                localStorage.setItem("rT", res.data.data.refreshToken);
+                navigate("/dashboard");
+            } else {
+                console.log(res.data.message);
+            }
+        })
+        .catch((err) => {
+            switch (err.status) {
+                case 400:
+                    console.log(err.response.data.message);
+                    break;
+                case 401:
+                    console.log(err.response.data.message);
+                    break;
+                case 500:
+                    console.log(err.response.data.message);
+                    break;
+            }
+        })
+}
+
+export async function verifyMailFunction(jsonFormData) {
+    console.log("form", jsonFormData);
+    const validEmail = new RegExp('^[^@\\s]+@[^@\\s]+\\.[a-zA-Z]{2,}$');
+    
+    if (!validEmail.test(jsonFormData.Mail)) {
+        return Promise.reject({ status: 400 });
+    }
+    const publicBase = import.meta.env.BASE_URL ?? '/'
+    return axios
+        ({
+            method: 'post',
+            url: `${publicBase}/api/register/CheckMail`,
+            data: jsonFormData,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+}

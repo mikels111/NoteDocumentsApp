@@ -1,0 +1,270 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+body {
+    min-height: 100vh;
+    background: #f3f4f6;
+}
+
+.sidebar {
+    position: sticky;
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    top: 0px;
+    width: 270px;
+    transition: all 0.4s ease;
+    border-right: solid 1px #d0d0d0;
+}
+
+    .sidebar.collapsed {
+        width: 75px;
+        min-width: 0px;
+    }
+
+    .sidebar .sidebar-header {
+        display: flex;
+        position: relative;
+        padding: 25px 22px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+        .sidebar .sidebar-header > * {
+            transform: translateX(27%);
+        }
+
+
+.sidebar-header .header-logo img {
+    width: 46px;
+    height: 46px;
+    display: block;
+    object-fit: contain;
+    border-radius: 50%;
+}
+
+.sidebar-header .toggler {
+    height: 35px;
+    width: 35px;
+    color: #151A2D;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    background: #fff;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: 0.4s ease;
+}
+
+.sidebar-header .sidebar-toggler {
+    position: absolute;
+    right: 20px;
+}
+
+.sidebar-header .menu-toggler {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-header .toggler {
+    transform: translate(0, 65px);
+}
+
+
+
+.sidebar-header .toggler span {
+    font-size: 1.75rem;
+    transition: 0.4s ease;
+}
+
+
+
+.sidebar-nav {
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    justify-content: space-between;
+    padding-bottom: 30px;
+}
+
+    .sidebar-nav .nav-list {
+        list-style: none;
+        display: flex;
+        gap: 4px;
+        padding: 0 15px;
+        flex-direction: column;
+        transform: translateY(15px);
+        transition: 0.4s ease;
+    }
+
+.sidebar.collapsed .sidebar-nav .primary-nav {
+    transform: translateY(65px);
+}
+
+.nav-link {
+    color: #1f2937;
+    display: flex;
+    gap: 12px;
+    white-space: nowrap;
+    border-radius: 8px;
+    padding: 12px 15px 12px 13px;
+    align-items: center;
+    text-decoration: none;
+    transition: 0.4s ease;
+}
+
+.nav-link-child {
+    justify-content: space-between;
+}
+
+.project-menu-button {
+    margin-left: auto;
+}
+
+.sidebar-button:hover {
+    display: block;
+    background-color: lightgray;
+    border-radius: 4px;
+}
+
+.sidebar.collapsed .sidebar-nav .nav-link {
+    border-radius: 12px;
+}
+
+.nav-label {
+    overflow-x: hidden;
+}
+
+.sidebar .sidebar-nav .nav-link .nav-label {
+    transition: opacity 0.3s ease;
+}
+
+.sidebar.collapsed .sidebar-nav .nav-link .nav-label {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sidebar-nav .nav-link:hover {
+    background: #e6eaf1;
+}
+
+.sidebar-nav .nav-item {
+    position: relative;
+}
+
+.sidebar-nav .nav-tooltip {
+    position: absolute;
+    top: -10px;
+    opacity: 0;
+    color: #151A2D;
+    display: none;
+    pointer-events: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+    background: #fff;
+    left: calc(100% + 25px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+    transition: 0s;
+}
+
+.sidebar.collapsed .sidebar-nav .nav-tooltip {
+    display: block;
+}
+
+.sidebar-nav .nav-item:hover .nav-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(50%);
+    transition: all 0.4s ease;
+}
+
+
+
+a.active {
+    background-color: #59C5DE;
+}
+
+    a.active:hover {
+        background-color: #59C5DE !important;
+    }
+
+.primary-nav {
+    overflow-y: scroll !important;
+    scrollbar-width: none;
+}
+
+    .primary-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+
+.collapsed .primary-nav div {
+    overflow-x: hidden !important;
+}
+
+.primary-nav div[role="tree"], .primary-nav div[role="tree"] > div {
+    height: inherit !important;
+}
+
+.primary-nav div[aria-selected="true"] a {
+    background-color: #59C5DE;
+}
+
+    .primary-nav div[aria-selected="true"] a:hover {
+        background-color: #59C5DE !important;
+    }
+
+.clickable {
+    cursor: pointer;
+}
+
+.add-menu {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.project-menu {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border: solid black 1px;
+    left: 100px;
+    z-index:1000;
+}
+/* Responsive media query code for small screens */
+@media (max-width: 768px) {
+    .sidebar-nav {
+        overflow-x: hidden;
+        overflow-y: scroll;
+    }
+
+    .sidebar.collapsed {
+        width: 0;
+        margin: 0;
+        position: initial;
+    }
+
+        .sidebar.collapsed .sidebar-nav {
+            display: none !important;
+        }
+
+        .sidebar.collapsed .header-logo {
+            visibility: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-header .toggler {
+            transform: none;
+        }
+
+        .sidebar.collapsed .sidebar-toggler {
+            right: initial;
+        }
+}
+   

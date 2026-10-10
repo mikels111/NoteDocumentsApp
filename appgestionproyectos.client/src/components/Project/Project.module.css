@@ -1,0 +1,12 @@
+.editorjs-container {
+    overflow-y: scroll !important;
+    scrollbar-width: none;
+}
+
+    .editorjs-container::-webkit-scrollbar {
+        display: none;
+    }
+
+.content-wrapper {
+    margin: 60px 0 0 20px;
+}

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.1184077">
+  <PropertyGroup>
+    <StartupCommand>npm run dev</StartupCommand>
+    <JavaScriptTestRoot>src\</JavaScriptTestRoot>
+    <JavaScriptTestFramework>Jest</JavaScriptTestFramework>
+    <!-- Allows the build (or compile) script located on package.json to run on Build -->
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <!-- Folder where production build objects will be placed -->
+    <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="src\components\Error\" />
+    <Folder Include="src\components\ConfirmModal\" />
+    <Folder Include="src\components\CreateProjectModal\" />
+    <Folder Include="src\components\SidebarNode\" />
+    <Folder Include="src\components\ProjectMenu\" />
+    <Folder Include="src\components\Project\" />
+    <Folder Include="src\components\Register\" />
+  </ItemGroup>
+</Project>

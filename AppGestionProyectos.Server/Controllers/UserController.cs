@@ -1,0 +1,224 @@
+﻿using AppGestionProyectos.Server.Data;
+using AppGestionProyectos.Server.Models;
+using AppGestionProyectos.Server.Services;
+using Humanizer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics;
+using System.Drawing.Drawing2D;
+using System.Net;
+using System.Net.Mail;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+
+
+namespace AppGestionProyectos.Server.Controllers
+{
+    [ApiController]
+    [Route("/api/[controller]")]
+    public class UserController : Controller
+    {
+        private readonly AppDbContext _AppDbContext;
+        private readonly IConfiguration _config;
+        static readonly HttpClient client = new HttpClient();
+        static readonly string _myAud = "765808157277-f5ktben8g1a5tflgbh9f0pi2tvdv68ih.apps.googleusercontent.com";
+
+
+        public UserController(AppDbContext appDbContext, IConfiguration config)
+        {
+            _AppDbContext = appDbContext;
+            _config = config;
+        }
+
+
+        [HttpPost]
+        [Route("LoginUser")]
+        public IActionResult LoginUser([FromForm] HttpRequest request)
+        {
+            foreach (var formField in request.Form)
+            {
+                var fileModelText = formField.Value;
+
+            }
+            Console.Write("prueba");
+            return Ok();
+        }
+
+        [Authorize]
+        [HttpPost]
+        [Route("UserProjectAssignment")]
+        public async Task<IActionResult> UserProjectAssignment([FromBody] object fields)
+        {
+            int environment = 0;
+            UserProject.UserProjectDTO userProjectFields;
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
+                };
+                userProjectFields = JsonSerializer.Deserialize<UserProject.UserProjectDTO>(fields.ToString(), options);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<object>(false, "bad-request", false, ex.ToString()));
+            }
+            try
+            {
+                string? userEmail = User.Claims.FirstOrDefault(c => c.Type == "Mail")?.Value;
+                //conseguir usuario id
+                int userId = await Models.User.GetUser(userEmail, _AppDbContext);
+
+                UserProject userProjectAssignment = await Models.UserProject.CreateUserProject(userId, userProjectFields.project, _AppDbContext);
+                if (userProjectAssignment.User_Id > 0)
+                {
+                    return Ok(new ApiResponse<object>(true, "access-granted", userProjectAssignment));
+                }
+                else
+                {
+                    return StatusCode(500, new ApiResponse<object>(false, "server-error", "Could not create the project"));
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<object>(false, "server-error", ex.ToString()));
+            }
+        }
+        [HttpPost]
+        [Route("LoginUserGoogle")]
+        public async Task<IActionResult> LoginUserGoogle([FromHeader] string token)
+        {
+            TokenResponse tokenResponse;
+            var cookieOptions = new CookieOptions
+            {
+                Expires = DateTimeOffset.Now.AddDays(1),
+                HttpOnly = true,
+                Secure = true,     // si usas HTTPS
+                SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Strict,
+                //SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None,
+                //Path = "/",
+                Domain = _config["host:name"].ToString()
+            };
+            try
+            {
+                var jsonResponse = "";
+                GoogleTokenInfo? responseDeserialized = new GoogleTokenInfo();
+                try
+                {
+                    HttpResponseMessage response = await client.GetAsync($"https://oauth2.googleapis.com/tokeninfo?access_token={token}");
+                    jsonResponse = await response.Content.ReadAsStringAsync();
+                    responseDeserialized = JsonSerializer
+                    .Deserialize<GoogleTokenInfo>(jsonResponse);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new ApiResponse<object>(false, "server-error", false, ex.ToString()));
+                }
+                if (responseDeserialized != null)
+                {
+                    if (!string.IsNullOrEmpty(responseDeserialized.error) ||
+                        string.IsNullOrEmpty(responseDeserialized.email_verified) ||
+                        responseDeserialized.aud != _myAud)
+                    {
+                        return Unauthorized(new ApiResponse<object>(false, "wrong-token", null));
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(responseDeserialized.email))
+                        {
+                            //checkmail
+                            User.UserDTO checkMail = await Models.User.Checkmail(responseDeserialized.email, _AppDbContext);
+                            #region si no existe mail
+                            if (string.IsNullOrEmpty(checkMail.Mail))
+                            {
+                                #region guardar en bd correo y contraseña
+                                Models.User.UserDTO userFields = new Models.User.UserDTO
+                                {
+                                    Mail = responseDeserialized.email,
+                                    TypeMail = ""
+                                };
+                                TokenResponse createUser = await Models.User.CreateUser(userFields, _AppDbContext, _config);
+                                if (string.IsNullOrEmpty(createUser.AccessToken))
+                                {
+                                    return StatusCode(500, new ApiResponse<object>(false, "server-error", false));
+                                }
+                                Response.Cookies.Append("AT", createUser.AccessToken, cookieOptions);
+                                Response.Cookies.Append("RT", createUser.RefreshToken, cookieOptions);
+                                return Ok(new ApiResponse<object>(true, "access-granted", createUser));
+                                #endregion
+                            }
+
+                            #endregion
+                            #region si existe mail
+
+                            #region es tipo mail
+                            if (checkMail.TypeMail == "email")
+                            {
+                                #region mandar codigo por correo y guardarlo en bd. Se devuelve show-codeInput
+                                // mandar codigo
+                                var smtpClient = new SmtpClient("smtp-relay.brevo.com")
+                                {
+                                    Port = 587,
+                                    Credentials = new NetworkCredential("81acc8002@smtp-brevo.com", "LUTmMXcgVzk6xZW4"),
+                                    EnableSsl = true,
+                                };
+                                MailMessage message = new MailMessage("mikelseara11@gmail.com", checkMail.Mail);
+                                string randmNumber = "";
+                                Random rnd = new Random();
+                                for (int j = 0; j < 5; j++)
+                                {
+                                    randmNumber += rnd.Next(10);//random integers < 10
+                                }
+                                bool saveVerfCodeResult = await Models.User.SaveVerificationCode(checkMail.Mail, randmNumber, _AppDbContext);
+                                if (saveVerfCodeResult)
+                                {
+
+                                    message.Body = "<p style='font-size:x-large;'>Copy the following code to continue:</p> <h1>" + randmNumber + "</h1>";
+                                    message.IsBodyHtml = true;
+                                    message.Subject = "Email confirmation";
+                                    smtpClient.Send(message);
+                                }
+                                // mostrar input codigo
+                                return Ok(new ApiResponse<object>(true, "show-codeInput", null));
+
+                                #endregion
+                            }
+                            #endregion
+                            #region no es tipo mail
+                            #region Models.User.GenerateTokens se devuelven los tokens en cookies
+                            tokenResponse = await Models.User.GenerateTokens(checkMail.Mail, _AppDbContext, _config);
+                            if (tokenResponse.AccessToken == null)
+                            {
+                                return StatusCode(500, new ApiResponse<object>(false, "server-error", false, "Error when calling the GenerateToken function"));
+                            }
+
+                            Response.Cookies.Append("AT", tokenResponse.AccessToken, cookieOptions);
+                            Response.Cookies.Append("RT", tokenResponse.RefreshToken, cookieOptions);
+                            return Ok(new ApiResponse<object>(true, "access-granted", tokenResponse));
+                            #endregion
+                            #endregion
+
+                            #endregion
+
+                            
+                        }
+                        return StatusCode(500, new ApiResponse<object>(false, "server-error", false, "the deserialized mail is null"));
+                    }
+
+                }
+                return BadRequest(new ApiResponse<object>(false, "bad-request", false, "the deserialized response is null"));
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("\nException Caught!");
+                Console.WriteLine("Message :{0} ", ex.Message);
+                return StatusCode(500, new ApiResponse<object>(false, "server-error", false, ex.ToString()));
+            }
+        }
+    }
+}

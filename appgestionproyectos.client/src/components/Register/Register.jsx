@@ -1,0 +1,200 @@
+import React, { useEffect, useState } from 'react';
+import { verifyCodeFunction, verifyMailFunction } from '../../Utils/Verification';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import './Register.css';
+import { ToastContainer } from 'react-toastify';
+import { Notify } from '../../Utils/Notifications';
+import Loader from '../../Utils/Loader';
+
+function Register() {
+    const navigate = useNavigate();
+    const { warn, info } = Notify();
+    const [user, setUser] = useState({
+        mail: ""
+    });
+    const importantStyle = {
+        textDecoration: "underline",
+        fontWeight: "bold"
+    };
+    const [mailConfirmed, setmailConfirmed] = useState(false);
+    const [showCodeInput, setShowCodeInput] = useState(false);
+    const [showPassName, setShowPassName] = useState(false);
+    const [codeCountDown, setCodeCountDown] = useState(0);
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCodeCountDown(prev => {
+                if (prev > 0) {
+                    return prev - 1;
+                } else {
+                    clearInterval(interval);
+                    return 0;
+                }
+            });
+        }, 1000);
+
+        // Limpia el intervalo
+        return () => clearInterval(interval);
+    }, [codeCountDown]);
+
+
+    const verifyCode = (e) => {
+        //mandar peticion a /verify con el codigo introducido y el mail guardado en state
+        e.preventDefault();
+        setLoading(true);
+        const formData = new FormData(e.target);
+        const jsonFormData = Object.fromEntries(formData.entries());
+        jsonFormData['Mail'] = user.mail;
+        const publicBase = import.meta.env.BASE_URL ?? '/'
+        axios.post(`${publicBase}/api/auth/verify`,
+            jsonFormData,
+            {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then((res) => {
+                if (res.status == 200) {
+                    localStorage.setItem("aT", res.data.data.accessToken);
+                    localStorage.setItem("rT", res.data.data.refreshToken);
+                    navigate("/");
+                } else {
+                    console.log(res.data.message);
+                }
+                setLoading(false);
+            })
+            .catch((err) => {
+                let messag = "We�re having technical issues. Please try again later.";
+                console.error("Error: ", err);
+                if (err.status == 401) {
+                    messag = "Wrong verification code";
+                }
+                warn(messag);
+                setLoading(false);
+            })
+    }
+    const register = (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const formData = new FormData(e.target);
+        const jsonFormData = Object.fromEntries(formData.entries());
+        const validPass = new RegExp("^.{8,}$");
+        if (jsonFormData.Password != null) {
+            if (!validPass.test(jsonFormData.Password)) {
+                warn("Please enter a valid password, at least 8 characters");
+                setLoading(false);
+                return;
+            }
+
+        }
+        const publicBase = import.meta.env.BASE_URL ?? '/'
+        axios.post(`${publicBase}/api/register/register`,
+            jsonFormData,
+            {
+                withCredentials: true,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then((res) => {
+                if (res.status === 200) {
+                    console.log("access-granted");
+                    window.location.href = `${publicBase}`; 
+                    setUser({ mail: jsonFormData.Mail });
+                }
+                setLoading(false);
+            })
+            .catch((err) => {
+                let messag = "We're having technical issues. Please try again later.";
+                console.error("Error: ", err);
+                if (err.status == 401) {
+                    messag = "Please enter a valid email";
+                }
+                warn(messag);
+                setLoading(false);
+            });
+    }
+    const verifyMail = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        const formData = new FormData(e.target);
+        const jsonFormData = Object.fromEntries(formData.entries());
+        try {
+            const response = await verifyMailFunction(jsonFormData);
+            if (response.status === 200) {
+                let messg = response.data.message;
+                if (messg === "show-codeInput") {
+                    setShowCodeInput(true);
+                    setCodeCountDown(59);
+                }
+                else if (messg === "show-pass-name") {
+                    setShowPassName(true);
+                    setmailConfirmed(true);
+                }
+                setUser({ mail: jsonFormData.Mail });
+                setLoading(false);
+            }
+        } catch (err) {
+            let messag = "We�re having technical issues. Please try again later.";
+            console.error("Error: ", err);
+            if (err.status == 400) {
+                messag = "Please enter a valid email";
+            }
+            warn(messag);
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div id="register-wrapper">
+            <ToastContainer hideProgressBar draggable />
+            <div id="register-frame">
+                {showCodeInput ? (
+                    <React.Fragment>
+                        {/*{Code form}*/}
+                        <p>A 5-digit code has been sent to <span style={importantStyle}>{user.mail}</span>. Please enter it below.<br />Don't forget to look in your <span style={importantStyle}>spam</span> folder.<br /><br />
+                            The code expires in {codeCountDown} seconds</p>
+                        <form className="email-form" onSubmit={verifyCode} key="codeForm">
+                            <div className="input-container">
+                                <label>Code </label>
+                                <input type="text" name="Code" id="code" required />
+                            </div>
+
+                            <button className="btn-confirm">
+                                <Loader loading={loading} />
+                                {!loading && "Go"}
+                            </button>
+
+
+                        </form>
+                    </React.Fragment>
+                ) : (
+                    <form className="email-form" onSubmit={mailConfirmed ? register : verifyMail} key="emailForm">
+                        <div className="input-container">
+                            <label className="input-label">Email</label>
+                            <input type="text" name="Mail" id="mail" required readOnly={mailConfirmed} />
+
+                            {mailConfirmed &&
+                                <div className="input-container">
+                                    <label className="input-label">Password</label>
+                                    <input type="password" name="Password" id="password" required />
+                                </div>
+                            }
+                        </div>
+                        <button type="submit" className="btn-confirm">
+                            <Loader loading={loading} />
+                            {!loading && "Go"}
+                        </button>
+                    </form>
+                )}
+
+            </div>
+        </div>
+
+
+    );
+
+
+}
+export default Register;
